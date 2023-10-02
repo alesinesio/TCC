@@ -1,0 +1,1332 @@
+---
+title: "TCC"
+author: "Alessandra Sinesio"
+date: "2023-09-18"
+output: html_document
+---
+
+#Pacotes
+```{r}
+pacotes <- c("tidytext","ggplot2","dplyr","tibble","gutenbergr","wordcloud","stringr","SnowballC","widyr","janeaustenr","httr","rvest","jsonlite","syuzhet","RColorBrewer", "tm" )
+
+if(sum(as.numeric(!pacotes %in% installed.packages())) != 0){
+  instalador <- pacotes[!pacotes %in% installed.packages()]
+  for(i in 1:length(instalador)) {
+    install.packages(instalador, dependencies = T)
+    break()}
+  sapply(pacotes, require, character = T) 
+} else {
+  sapply(pacotes, require, character = T) 
+}
+
+```
+#Carregamento Bibliotecas
+```{r}
+#Carregamento Bibliotecas
+library("dplyr")     #manipulação de dados
+library("tidytext")
+library("ggplot2")
+library("tibble")    #para criar dataframes
+library("readr")     #Reading, Writing and Converting Simple Features
+library("httr")      #para uso de http
+library("rvest")     #para uso de json
+library("readxl")
+library("tm")
+library("wordcloud")
+library("e1071")
+library("gmodels")
+library("SnowballC")
+library("caret")
+library("syuzhet")
+library("RColorBrewer")
+library("wordcloud")
+library("tm")
+library("quanteda") # pacote quanteda permite trabalhar com Tokens, Corpus e DFMs
+library("ggplot2")
+library("stringr")
+library("igraph")
+library("ggraph")
+library("tidytext")
+library("widyr")
+```
+
+# Leitura dos arquivos csv
+```{r}
+###############################
+#HBO#
+HBO <- read.csv2(file = "C:/Users/Alessandra/Downloads/TCC/Scripts/Resultado_coleta/run_results_HBO.csv", 
+                 sep = ";",
+                 header = TRUE,
+                 encoding = "UTF-8")
+
+
+HBO_PROVEDOR <- HBO %>% mutate(Provedor = "HBO")
+
+HBO_Review_Full <- HBO_PROVEDOR  %>% select(Provedor, Review)
+
+HBO_Review <- HBO_PROVEDOR  %>% select(Review)
+
+###############################
+#Netflix#
+
+Netflix <- read.csv2(file ="C:/Users/Alessandra/Downloads/TCC/Scripts/Resultado_coleta/run_results_Netflix.csv",
+                 sep = ";",
+                 header = TRUE,
+                 encoding = "UTF-8")
+
+
+Netflix_PROVEDOR <- Netflix %>% mutate(Provedor = "Netflix")
+
+Netflix_Review_Full <- Netflix_PROVEDOR  %>% select(Provedor, Review)
+
+Netflix_Review <- Netflix_PROVEDOR  %>% select(Review)
+
+###############################
+#ParamountPlus#
+
+ParamountPlus <- read.csv2(file="C:/Users/Alessandra/Downloads/TCC/Scripts/Resultado_coleta/run_results_ParamountPlus.csv",
+                 sep = ";",
+                 header = TRUE,
+                 encoding = "UTF-8")
+
+
+ParamountPlus_PROVEDOR <- ParamountPlus %>% mutate(Provedor = "Paramount Plus")
+
+ParamountPlus_Review_Full <- ParamountPlus_PROVEDOR  %>% select(Provedor, Review)
+
+ParamountPlus_Review <- ParamountPlus_PROVEDOR  %>% select(Review)
+
+###############################
+#DisneyPlus#
+
+DisneyPlus <- read.csv2(file ="C:/Users/Alessandra/Downloads/TCC/Scripts/Resultado_coleta/run_results_DisneyPlus.csv",
+                 sep = ";",
+                 header = TRUE,
+                 encoding = "UTF-8")
+
+DisneyPlus_PROVEDOR <- DisneyPlus %>% mutate(Provedor = "Disney Plus")
+
+DisneyPlus_Review_Full <- DisneyPlus_PROVEDOR  %>% select(Provedor, Review)
+
+DisneyPlus_Review <- DisneyPlus_PROVEDOR  %>% select(Review)
+
+###############################
+#Amazon_Prime#
+
+Amazon_Prime <- read.csv2(file="C:/Users/Alessandra/Downloads/TCC/Scripts/Resultado_coleta/run_results_Amazon_Prime.csv",
+                 sep = ";",
+                 header = TRUE,
+                 encoding = "UTF-8")
+
+Amazon_Prime_PROVEDOR <- Amazon_Prime %>% mutate(Provedor = "Amazon Prime")
+
+Amazon_Prime_Review_Full <- Amazon_Prime_PROVEDOR  %>% select(Provedor, Review)
+
+Amazon_Prime_Review <- Amazon_Prime_PROVEDOR  %>% select(Review)
+
+```
+
+# #pré-processamento - Data Cleaning
+
+```{r}
+###HBO###
+  # remove pontuação
+  clean_HBO <- gsub('[[:punct:]]', '', HBO_Review)
+  # remove numeros
+  clean_HBO <- gsub("\\d+", "", clean_HBO)
+  clean_HBO <- gsub('[[:digit:]]', '', clean_HBO)
+  # remove espaços
+  clean_HBO <- gsub('[ \t]{2,}', '', clean_HBO)
+  clean_HBO <- gsub('^\\s+|\\s+$', '', clean_HBO)
+  clean_HBO <- gsub('^\\s+|\\s+$', '', clean_HBO)
+  # remove emojis ou caracteres especiais
+  clean_HBO <- gsub('<.*>', '', enc2native(clean_HBO))
+  clean_HBO <- gsub("/", " ", clean_HBO)   
+  clean_HBO <- gsub("@", " ", clean_HBO)   
+  clean_HBO <- gsub("\\|", " ", clean_HBO)
+  clean_HBO <- gsub("<>", " ", clean_HBO)
+  clean_HBO <- gsub("<*>", " ", clean_HBO)
+
+###Netflix###
+  # remove pontuação
+  clean_Netflix <- gsub('[[:punct:]]', '', Netflix_Review)
+  # remove numeros
+  clean_Netflix <- gsub('[[:digit:]]', '', clean_Netflix)
+  # remove espaços
+  clean_Netflix <- gsub('[ \t]{2,}', '', clean_Netflix)
+  clean_Netflix <- gsub('^\\s+|\\s+$', '', clean_Netflix)
+  clean_Netflix <- gsub('^\\s+|\\s+$', '', clean_Netflix)
+  # remove emojis ou caracteres especiais
+  clean_Netflix <- gsub('<.*>', '', enc2native(clean_Netflix))
+  clean_Netflix <- gsub("/", " ", clean_Netflix)   
+  clean_Netflix <- gsub("@", " ", clean_Netflix)   
+  clean_Netflix <- gsub("\\|", " ", clean_Netflix)
+  clean_Netflix <- gsub("<>", " ", clean_Netflix)
+  clean_Netflix <- gsub("<*>", " ", clean_Netflix)
+  
+###ParamountPlus###
+  # remove pontuação
+  clean_ParamountPlus <- gsub('[[:punct:]]', '', ParamountPlus_Review)
+  # remove numeros
+  clean_ParamountPlus <- gsub('[[:digit:]]', '', clean_ParamountPlus)
+  # remove espaços
+  clean_ParamountPlus <- gsub('[ \t]{2,}', '', clean_ParamountPlus)
+  clean_ParamountPlus <- gsub('^\\s+|\\s+$', '', clean_ParamountPlus)
+  clean_ParamountPlus <- gsub('^\\s+|\\s+$', '', clean_ParamountPlus)
+  # remove emojis ou caracteres especiais
+  clean_ParamountPlus <- gsub('<.*>', '', enc2native(clean_ParamountPlus))
+  clean_ParamountPlus <- gsub("/", " ", clean_ParamountPlus)   
+  clean_ParamountPlus <- gsub("@", " ", clean_ParamountPlus)   
+  clean_ParamountPlus <- gsub("\\|", " ", clean_ParamountPlus)
+  clean_ParamountPlus <- gsub("<>", " ", clean_ParamountPlus)
+  clean_ParamountPlus <- gsub("<*>", " ", clean_ParamountPlus)
+  
+###DisneyPlus###
+  # remove pontuação
+  clean_DisneyPlus <- gsub('[[:punct:]]', '', DisneyPlus_Review)
+  # remove numeros
+  clean_DisneyPlus <- gsub('[[:digit:]]', '', clean_DisneyPlus)
+  # remove espaços
+  clean_DisneyPlus <- gsub('[ \t]{2,}', '', clean_DisneyPlus)
+  clean_DisneyPlus <- gsub('^\\s+|\\s+$', '', clean_DisneyPlus)
+  clean_DisneyPlus <- gsub('^\\s+|\\s+$', '', clean_DisneyPlus)
+  # remove emojis ou caracteres especiais
+  clean_DisneyPlus <- gsub('<.*>', '', enc2native(clean_DisneyPlus))
+  clean_DisneyPlus <- gsub("/", " ", clean_DisneyPlus)   
+  clean_DisneyPlus <- gsub("@", " ", clean_DisneyPlus)   
+  clean_DisneyPlus <- gsub("\\|", " ", clean_DisneyPlus)
+  clean_DisneyPlus <- gsub("<>", " ", clean_DisneyPlus)
+  clean_DisneyPlus <- gsub("<*>", " ", clean_DisneyPlus)  
+  
+###Amazon_Prime###
+  # remove pontuação
+  clean_Amazon_Prime <- gsub('[[:punct:]]', '', Amazon_Prime_Review)
+  # remove numeros
+  clean_Amazon_Prime <- gsub('[[:digit:]]', '', clean_Amazon_Prime)
+  # remove espaços
+  clean_Amazon_Prime <- gsub('[ \t]{2,}', '', clean_Amazon_Prime)
+  clean_Amazon_Prime <- gsub('^\\s+|\\s+$', '', clean_Amazon_Prime)
+  clean_Amazon_Prime <- gsub('^\\s+|\\s+$', '', clean_Amazon_Prime)
+  # remove emojis ou caracteres especiais
+  clean_Amazon_Prime <- gsub('<.*>', '', enc2native(clean_Amazon_Prime))
+  clean_Amazon_Prime <- gsub("/", " ", clean_Amazon_Prime)   
+  clean_Amazon_Prime <- gsub("@", " ", clean_Amazon_Prime)   
+  clean_Amazon_Prime <- gsub("\\|", " ", clean_Amazon_Prime)
+  clean_Amazon_Prime <- gsub("<>", " ", clean_Amazon_Prime)
+  clean_Amazon_Prime <- gsub("<*>", " ", clean_Amazon_Prime)  
+  
+  
+```
+
+
+```{r}
+
+#HBO#
+
+HBO_Corpus <- VCorpus(VectorSource(clean_HBO)) 
+HBO_Corpus <- tm_map(HBO_Corpus, removeNumbers)
+HBO_Corpus <- tm_map(HBO_Corpus, removeWords, stopwords("portuguese"))
+HBO_Corpus <- tm_map(HBO_Corpus, removeWords, c("app", "é", "os", "as", "por", "porém", "o", "aplicativo", "e", "não", "nã", "ã", "pra", "assistir", "TV", "HBO", "hbo"))
+HBO_Corpus <- tm_map(HBO_Corpus, content_transformer(tolower))
+HBO_Corpus <- tm_map(HBO_Corpus, removePunctuation)
+HBO_Corpus <- tm_map(HBO_Corpus, stripWhitespace)
+dictCorpus <- HBO_Corpus
+stemCompletion <- tm_map(HBO_Corpus, stemDocument, "portuguese")
+HBO_Corpus <- tm_map(HBO_Corpus, PlainTextDocument)
+# tokenize the corpus
+HBO_CorpusTokenized <- lapply(HBO_Corpus, scan_tokenizer)
+# stem complete each token vector
+HBO_TokensStemCompleted <- lapply(HBO_CorpusTokenized, stemCompletion, dictCorpus)
+# concatenate tokens by document, create data frame
+HBO_df <- data.frame(text = sapply(HBO_TokensStemCompleted, paste, collapse = " "), stringsAsFactors = FALSE)
+
+#Netflix#
+Netflix_Corpus <- VCorpus(VectorSource(clean_Netflix)) 
+Netflix_Corpus <- tm_map(Netflix_Corpus, removeNumbers)
+Netflix_Corpus <- tm_map(Netflix_Corpus, removeWords, stopwords("portuguese"))
+Netflix_Corpus <- tm_map(Netflix_Corpus, removeWords, c("app", "é", "os", "as", "por", "porém", "o", "aplicativo", "e", "não", "nã", "ã", "pra", "assistir", "TV", "Netflix"))
+Netflix_Corpus <- tm_map(Netflix_Corpus, content_transformer(tolower))
+Netflix_Corpus <- tm_map(Netflix_Corpus, removePunctuation)
+Netflix_Corpus <- tm_map(Netflix_Corpus, stripWhitespace)
+dictCorpus <- Netflix_Corpus
+stemCompletion <- tm_map(Netflix_Corpus, stemDocument, "portuguese")
+Netflix_Corpus <- tm_map(Netflix_Corpus, PlainTextDocument)
+# tokenize the corpus
+Netflix_CorpusTokenized <- lapply(Netflix_Corpus, scan_tokenizer)
+# stem complete each token vector
+Netflix_TokensStemCompleted <- lapply(Netflix_CorpusTokenized, stemCompletion, dictCorpus)
+# concatenate tokens by document, create data frame
+Netflix_df <- data.frame(text = sapply(Netflix_TokensStemCompleted, paste, collapse = " "), stringsAsFactors = FALSE)
+
+
+#ParamountPlus#
+ParamountPlus_Corpus <- VCorpus(VectorSource(clean_ParamountPlus)) 
+ParamountPlus_Corpus <- tm_map(ParamountPlus_Corpus, removeNumbers)
+ParamountPlus_Corpus <- tm_map(ParamountPlus_Corpus, removeWords, stopwords("portuguese"))
+ParamountPlus_Corpus <- tm_map(ParamountPlus_Corpus, removeWords, c("app", "é", "os", "as", "por", "porém", "o", "aplicativo", "e", "não", "nã", "ã", "pra", "assistir", "TV", "ParamountPlus"))
+ParamountPlus_Corpus <- tm_map(ParamountPlus_Corpus, content_transformer(tolower))
+ParamountPlus_Corpus <- tm_map(ParamountPlus_Corpus, removePunctuation)
+ParamountPlus_Corpus <- tm_map(ParamountPlus_Corpus, stripWhitespace)
+dictCorpus <- ParamountPlus_Corpus
+stemCompletion <- tm_map(ParamountPlus_Corpus, stemDocument, "portuguese")
+ParamountPlus_Corpus <- tm_map(ParamountPlus_Corpus, PlainTextDocument)
+# tokenize the corpus
+ParamountPlus_CorpusTokenized <- lapply(ParamountPlus_Corpus, scan_tokenizer)
+# stem complete each token vector
+ParamountPlus_TokensStemCompleted <- lapply(ParamountPlus_CorpusTokenized, stemCompletion, dictCorpus)
+# concatenate tokens by document, create data frame
+ParamountPlus_df <- data.frame(text = sapply(ParamountPlus_TokensStemCompleted, paste, collapse = " "), stringsAsFactors = FALSE)
+
+
+#DisneyPlus#
+DisneyPlus_Corpus <- VCorpus(VectorSource(clean_DisneyPlus)) 
+DisneyPlus_Corpus <- tm_map(DisneyPlus_Corpus, removeNumbers)
+DisneyPlus_Corpus <- tm_map(DisneyPlus_Corpus, removeWords, stopwords("portuguese"))
+DisneyPlus_Corpus <- tm_map(DisneyPlus_Corpus, removeWords, c("app", "é", "os", "as", "por", "porém", "o", "aplicativo", "e", "não", "nã", "ã", "pra", "assistir", "TV",  "DisneyPlus"))
+DisneyPlus_Corpus <- tm_map(DisneyPlus_Corpus, content_transformer(tolower))
+DisneyPlus_Corpus <- tm_map(DisneyPlus_Corpus, removePunctuation)
+DisneyPlus_Corpus <- tm_map(DisneyPlus_Corpus, stripWhitespace)
+dictCorpus <- DisneyPlus_Corpus
+stemCompletion <- tm_map(DisneyPlus_Corpus, stemDocument, "portuguese")
+DisneyPlus_Corpus <- tm_map(DisneyPlus_Corpus, PlainTextDocument)
+# tokenize the corpus
+DisneyPlus_CorpusTokenized <- lapply(DisneyPlus_Corpus, scan_tokenizer)
+# stem complete each token vector
+DisneyPlus_TokensStemCompleted <- lapply(DisneyPlus_CorpusTokenized, stemCompletion, dictCorpus)
+# concatenate tokens by document, create data frame
+DisneyPlus_df <- data.frame(text = sapply(DisneyPlus_TokensStemCompleted, paste, collapse = " "), stringsAsFactors = FALSE)
+
+
+#Amazon_Prime#
+Amazon_Prime_Corpus <- VCorpus(VectorSource(clean_Amazon_Prime)) 
+Amazon_Prime_Corpus <- tm_map(Amazon_Prime_Corpus, removeNumbers)
+Amazon_Prime_Corpus <- tm_map(Amazon_Prime_Corpus, removeWords, stopwords("portuguese"))
+Amazon_Prime_Corpus <- tm_map(Amazon_Prime_Corpus, removeWords, c("app", "é", "os", "as", "por", "porém", "o", "aplicativo", "e", "não", "nã", "ã", "pra", "assistir", "TV", "Amazon_Prime"))
+Amazon_Prime_Corpus <- tm_map(Amazon_Prime_Corpus, content_transformer(tolower))
+Amazon_Prime_Corpus <- tm_map(Amazon_Prime_Corpus, removePunctuation)
+Amazon_Prime_Corpus <- tm_map(Amazon_Prime_Corpus, stripWhitespace)
+dictCorpus <- Amazon_Prime_Corpus
+stemCompletion <- tm_map(Amazon_Prime_Corpus, stemDocument, "portuguese")
+Amazon_Prime_Corpus <- tm_map(Amazon_Prime_Corpus, PlainTextDocument)
+# tokenize the corpus
+Amazon_Prime_CorpusTokenized <- lapply(Amazon_Prime_Corpus, scan_tokenizer)
+# stem complete each token vector
+Amazon_Prime_TokensStemCompleted <- lapply(Amazon_Prime_CorpusTokenized, stemCompletion, dictCorpus)
+# concatenate tokens by document, create data frame
+Amazon_Prime_df <- data.frame(text = sapply(Amazon_Prime_TokensStemCompleted, paste, collapse = " "), stringsAsFactors = FALSE)
+
+```
+# Corpus -> Matrix
+```{r}
+HBO_tdm <- as.matrix(TermDocumentMatrix(HBO_df))
+Netflix_tdm <- as.matrix(TermDocumentMatrix(Netflix_df))
+ParamountPlus_tdm <- as.matrix(TermDocumentMatrix(ParamountPlus_df))
+DisneyPlus_tdm <- as.matrix(TermDocumentMatrix(DisneyPlus_df))
+Amazon_Prime_tdm <- as.matrix(TermDocumentMatrix(Amazon_Prime_df))
+
+```
+
+#frequência de Palavras / Gráfico
+
+```{r}
+par(mfrow = c(2, 3))
+
+limite_y_min <- 0  # Valor mínimo para o eixo y
+limite_y_max <- 80  # Valor máximo para o eixo y
+
+###HBO###
+frequencia_HBO <- sort(rowSums(HBO_tdm), decreasing = TRUE)
+# Selecionar os 20 primeiros itens com maior frequência
+top_20_frequencia_HBO <- head(frequencia_HBO, 10)
+
+# Criar o gráfico de barras com os 20 primeiros itens
+barplot(top_20_frequencia_HBO, las = 2, main = "HBO", ylim=c(limite_y_min, limite_y_max), col = brewer.pal(length(top_20_frequencia_HBO), name = "Dark2"))
+
+###Netflix###
+frequencia_Netflix <- sort(rowSums(Netflix_tdm), decreasing = TRUE)
+# Selecionar os 20 primeiros itens com maior frequência
+top_20_frequencia_Netflix <- head(frequencia_Netflix, 10)
+
+# Criar o gráfico de barras com os 20 primeiros itens
+barplot(top_20_frequencia_Netflix, las = 2, main = "Netflix", ylim=c(limite_y_min, limite_y_max), col = brewer.pal(length(top_20_frequencia_Netflix), name = "Dark2"))
+
+###ParamountPlus###
+frequencia_ParamountPlus <- sort(rowSums(ParamountPlus_tdm), decreasing = TRUE)
+# Selecionar os 20 primeiros itens com maior frequência
+top_20_frequencia_ParamountPlus <- head(frequencia_ParamountPlus, 10)
+
+# Criar o gráfico de barras com os 20 primeiros itens
+barplot(top_20_frequencia_ParamountPlus, las = 2, main = "Paramount Plus", ylim=c(limite_y_min, limite_y_max), col = brewer.pal(length(top_20_frequencia_ParamountPlus), name = "Dark2"))
+
+###DisneyPlus###
+frequencia_DisneyPlus <- sort(rowSums(DisneyPlus_tdm), decreasing = TRUE)
+# Selecionar os 20 primeiros itens com maior frequência
+top_20_frequencia_DisneyPlus <- head(frequencia_DisneyPlus, 10)
+
+# Criar o gráfico de barras com os 20 primeiros itens
+barplot(top_20_frequencia_DisneyPlus, las = 2, main = "Disney Plus", ylim=c(limite_y_min, limite_y_max), col = brewer.pal(length(top_20_frequencia_DisneyPlus), name = "Dark2"))
+
+###Amazon_Prime###
+frequencia_Amazon_Prime <- sort(rowSums(Amazon_Prime_tdm), decreasing = TRUE)
+# Selecionar os 20 primeiros itens com maior frequência
+top_20_frequencia_Amazon_Prime <- head(frequencia_Amazon_Prime, 10)
+
+# Criar o gráfico de barras com os 20 primeiros itens
+barplot(top_20_frequencia_Amazon_Prime, las = 2, main = "Amazon Prime",ylim=c(limite_y_min, limite_y_max), col = brewer.pal(length(top_20_frequencia_Amazon_Prime), name = "Dark2"))
+
+
+
+
+```
+
+# Núvem de palavras
+```{r}
+#par(mfrow = c(2, 3))
+
+#png("wordcloud.png", width = 12, height = 8, units = "in", res = 300)
+
+###HBO###
+wordcloud(HBO_df,
+          scale = c(8, 0.2),
+          min.freq = 1,
+          max.words = Inf,
+          random.order = FALSE,
+          rot.per = 0.15,
+          colors = brewer.pal(8, "Dark2")) 
+
+
+###netflix###
+wordcloud(Netflix_df,
+          scale = c(8, 0.2),
+          min.freq = 1,
+          max.words = Inf,
+          random.order = FALSE,
+          rot.per = 0.15,
+          colors = brewer.pal(8, "Dark2")) 
+
+###ParamountPlus###
+wordcloud(ParamountPlus_df,
+          scale = c(8, 0.2),
+          min.freq = 1,
+          max.words = Inf,
+          random.order = FALSE,
+          rot.per = 0.15,
+          colors = brewer.pal(8, "Dark2"))  
+
+###DisneyPlus###
+wordcloud(DisneyPlus_df,
+          scale = c(8, 0.2),
+          min.freq = 1,
+          max.words = Inf,
+          random.order = FALSE,
+          rot.per = 0.15,
+          colors = brewer.pal(8, "Dark2"))  
+
+###Amazon_Prime###
+wordcloud(Amazon_Prime_df,
+          scale = c(8, 0.2),
+          min.freq = 1,
+          max.words = Inf,
+          random.order = FALSE,
+          rot.per = 0.15,
+          colors = brewer.pal(8, "Dark2")) 
+
+```
+
+#Extração de sentimentos
+
+```{r}
+#Extração de dados com o NRC Sentiment Lexicon
+#usar argumento “lang”para usar o vocabulário português (“portuguese”). 
+
+par(mfrow = c(2, 3))
+
+limite_y_min <- 0  # Valor mínimo para o eixo y
+limite_y_max <- 0.3  # Valor máximo para o eixo y
+
+###HBO###
+HBO_Vector <- as.character(HBO_TokensStemCompleted)
+
+HBO_sentimentos_df <- get_nrc_sentiment(HBO_Vector, lang="portuguese")
+head(HBO_sentimentos_df)
+summary(HBO_sentimentos_df)
+
+#Organizar gráfico do maior para o menor e realizar a tradução dos termos
+HBO_sentimentos_df <- rename(HBO_sentimentos_df, 
+                             raiva = "anger",
+                             antecipação = "anticipation",	
+                             desgosto = "disgust",
+                             medo = "fear",	
+                             alegria = "joy",	
+                             tristeza = "sadness",
+                             surpresa = "surprise",	
+                             confiança = "trust",
+                             negativo = "negative",	
+                             positivo = "positive")
+
+HBO_sentimentos_df <- HBO_sentimentos_df %>% select(tristeza,  medo, confiança, raiva, desgosto, antecipação, alegria, surpresa, negativo, positivo)
+
+# Calcular a soma das emoções e ordenar em ordem decrescente
+soma_emocoes_HBO <- colSums(prop.table(HBO_sentimentos_df[, 1:8]))
+soma_emocoes_HBO_ordenado <- sort(soma_emocoes_HBO, decreasing = TRUE)
+
+# Criar o gráfico de barras com as emoções ordenadas
+barplot(
+  soma_emocoes_HBO_ordenado,
+  space = 0.2,
+  horiz = FALSE,
+  las = 1,
+  cex.names = 0.7,
+  col = brewer.pal(n = 8, name = "Dark2"),
+  main = "HBO - Emoções",
+  xlab = "Emoções",
+  ylab = NULL,
+  ylim=c(limite_y_min, limite_y_max)
+)
+
+###Netflix###
+Netflix_Vector <- as.character(Netflix_TokensStemCompleted)
+
+Netflix_sentimentos_df <- get_nrc_sentiment(Netflix_Vector, lang="portuguese")
+head(Netflix_sentimentos_df)
+summary(Netflix_sentimentos_df)
+
+#Organizar gráfico do maior para o menor e realizar a tradução dos termos
+Netflix_sentimentos_df <- rename(Netflix_sentimentos_df, 
+                             raiva = "anger",
+                             antecipação = "anticipation",	
+                             desgosto = "disgust",
+                             medo = "fear",	
+                             alegria = "joy",	
+                             tristeza = "sadness",
+                             surpresa = "surprise",	
+                             confiança = "trust",
+                             negativo = "negative",	
+                             positivo = "positive")
+
+Netflix_sentimentos_df <- Netflix_sentimentos_df %>% select(tristeza,  medo, confiança, raiva, desgosto, antecipação, alegria, surpresa, negativo, positivo)
+
+# Calcular a soma das emoções e ordenar em ordem decrescente
+soma_emocoes_Netflix <- colSums(prop.table(Netflix_sentimentos_df[, 1:8]))
+soma_emocoes_Netflix_ordenado <- sort(soma_emocoes_Netflix, decreasing = TRUE)
+
+# Criar o gráfico de barras com as emoções ordenadas
+barplot(
+  soma_emocoes_Netflix_ordenado,
+  space = 0.2,
+  horiz = FALSE,
+  las = 1,
+  cex.names = 0.7,
+  col = brewer.pal(n = 8, name = "Dark2"),
+  main = "Netflix - Emoções",
+  xlab = "Emoções",
+  ylab = NULL,
+  ylim=c(limite_y_min, limite_y_max)
+)
+
+
+###ParamountPlus###
+ParamountPlus_Vector <- as.character(ParamountPlus_TokensStemCompleted)
+
+ParamountPlus_sentimentos_df <- get_nrc_sentiment(ParamountPlus_Vector, lang="portuguese")
+head(ParamountPlus_sentimentos_df)
+summary(ParamountPlus_sentimentos_df)
+
+#Organizar gráfico do maior para o menor e realizar a tradução dos termos
+ParamountPlus_sentimentos_df <- rename(ParamountPlus_sentimentos_df, 
+                             raiva = "anger",
+                             antecipação = "anticipation",	
+                             desgosto = "disgust",
+                             medo = "fear",	
+                             alegria = "joy",	
+                             tristeza = "sadness",
+                             surpresa = "surprise",	
+                             confiança = "trust",
+                             negativo = "negative",	
+                             positivo = "positive")
+
+ParamountPlus_sentimentos_df <- ParamountPlus_sentimentos_df %>% select(tristeza,  medo, confiança, raiva, desgosto, antecipação, alegria, surpresa, negativo, positivo)
+
+# Calcular a soma das emoções e ordenar em ordem decrescente
+soma_emocoes_ParamountPlus <- colSums(prop.table(ParamountPlus_sentimentos_df[, 1:8]))
+soma_emocoes_ParamountPlus_ordenado <- sort(soma_emocoes_ParamountPlus, decreasing = TRUE)
+
+# Criar o gráfico de barras com as emoções ordenadas
+barplot(
+  soma_emocoes_ParamountPlus_ordenado,
+  space = 0.2,
+  horiz = FALSE,
+  las = 1,
+  cex.names = 0.7,
+  col = brewer.pal(n = 8, name = "Dark2"),
+  main = "ParamountPlus - Emoções",
+  xlab = "Emoções",
+  ylab = NULL,
+  ylim=c(limite_y_min, limite_y_max)
+)
+
+###DisneyPlus###
+DisneyPlus_Vector <- as.character(DisneyPlus_TokensStemCompleted)
+
+DisneyPlus_sentimentos_df <- get_nrc_sentiment(DisneyPlus_Vector, lang="portuguese")
+head(DisneyPlus_sentimentos_df)
+summary(DisneyPlus_sentimentos_df)
+
+#Organizar gráfico do maior para o menor e realizar a tradução dos termos
+DisneyPlus_sentimentos_df <- rename(DisneyPlus_sentimentos_df, 
+                             raiva = "anger",
+                             antecipação = "anticipation",	
+                             desgosto = "disgust",
+                             medo = "fear",	
+                             alegria = "joy",	
+                             tristeza = "sadness",
+                             surpresa = "surprise",	
+                             confiança = "trust",
+                             negativo = "negative",	
+                             positivo = "positive")
+
+DisneyPlus_sentimentos_df <- DisneyPlus_sentimentos_df %>% select(tristeza,  medo, confiança, raiva, desgosto, antecipação, alegria, surpresa, negativo, positivo)
+
+# Calcular a soma das emoções e ordenar em ordem decrescente
+soma_emocoes_DisneyPlus <- colSums(prop.table(DisneyPlus_sentimentos_df[, 1:8]))
+soma_emocoes_DisneyPlus_ordenado <- sort(soma_emocoes_DisneyPlus, decreasing = TRUE)
+
+# Criar o gráfico de barras com as emoções ordenadas
+barplot(
+  soma_emocoes_DisneyPlus_ordenado,
+  space = 0.2,
+  horiz = FALSE,
+  las = 1,
+  cex.names = 0.7,
+  col = brewer.pal(n = 8, name = "Dark2"),
+  main = "DisneyPlus - Emoções",
+  xlab = "Emoções",
+  ylab = NULL,
+  ylim=c(limite_y_min, limite_y_max)
+)
+
+###Amazon_Prime###
+Amazon_Prime_Vector <- as.character(Amazon_Prime_TokensStemCompleted)
+
+Amazon_Prime_sentimentos_df <- get_nrc_sentiment(Amazon_Prime_Vector, lang="portuguese")
+head(Amazon_Prime_sentimentos_df)
+summary(Amazon_Prime_sentimentos_df)
+
+#Organizar gráfico do maior para o menor e realizar a tradução dos termos
+Amazon_Prime_sentimentos_df <- rename(Amazon_Prime_sentimentos_df, 
+                             raiva = "anger",
+                             antecipação = "anticipation",	
+                             desgosto = "disgust",
+                             medo = "fear",	
+                             alegria = "joy",	
+                             tristeza = "sadness",
+                             surpresa = "surprise",	
+                             confiança = "trust",
+                             negativo = "negative",	
+                             positivo = "positive")
+
+Amazon_Prime_sentimentos_df <- Amazon_Prime_sentimentos_df %>% select(tristeza,  medo, confiança, raiva, desgosto, antecipação, alegria, surpresa, negativo, positivo)
+
+# Calcular a soma das emoções e ordenar em ordem decrescente
+soma_emocoes_Amazon_Prime <- colSums(prop.table(Amazon_Prime_sentimentos_df[, 1:8]))
+soma_emocoes_Amazon_Prime_ordenado <- sort(soma_emocoes_Amazon_Prime, decreasing = TRUE)
+
+# Criar o gráfico de barras com as emoções ordenadas
+barplot(
+  soma_emocoes_Amazon_Prime_ordenado,
+  space = 0.2,
+  horiz = FALSE,
+  las = 1,
+  cex.names = 0.7,
+  col = brewer.pal(n = 8, name = "Dark2"),
+  main = "Amazon_Prime - Emoções",
+  xlab = "Emoções",
+  ylab = NULL,
+  ylim=c(limite_y_min, limite_y_max)
+)
+
+
+```
+
+#Sentimentos Positivos x Sentimentos negativos
+```{r}
+par(mfrow = c(2, 3))
+
+limite_y_min <- 0  # Valor mínimo para o eixo y
+limite_y_max <- 0.65  # Valor máximo para o eixo y
+
+#HBO - Positivo x Negativo
+barplot(
+  colSums(prop.table(HBO_sentimentos_df[, 10:09])),
+  space = 0.2,
+  horiz = FALSE,
+  las = 1,
+  cex.names = 0.7,
+  col = brewer.pal(n = 8, name = "Dark2"),
+  main = "HBO - Positivo x Negativo",
+  xlab="emoções", ylab = NULL,
+  ylim=c(limite_y_min, limite_y_max),
+  axes=TRUE
+)
+
+#Netflix - Positivo x Negativo
+barplot(
+  colSums(prop.table(Netflix_sentimentos_df[, 10:09])),
+  space = 0.2,
+  horiz = FALSE,
+  las = 1,
+  cex.names = 0.7,
+  col = brewer.pal(n = 8, name = "Dark2"),
+  main = "Netflix - Positivo x Negativo",
+  xlab="emoções", ylab = NULL,
+  ylim=c(limite_y_min, limite_y_max),
+  axes=TRUE
+)
+
+#ParamountPlus - Positivo x Negativo
+barplot(
+  colSums(prop.table(ParamountPlus_sentimentos_df[, 10:09])),
+  space = 0.2,
+  horiz = FALSE,
+  las = 1,
+  cex.names = 0.7,
+  col = brewer.pal(n = 8, name = "Dark2"),
+  main = "ParamountPlus - Positivo x Negativo",
+  xlab="emoções", ylab = NULL,
+  ylim=c(limite_y_min, limite_y_max),
+  axes=TRUE
+)
+
+#DisneyPlus - Positivo x Negativo
+barplot(
+  colSums(prop.table(DisneyPlus_sentimentos_df[, 10:09])),
+  space = 0.2,
+  horiz = FALSE,
+  las = 1,
+  cex.names = 0.7,
+  col = brewer.pal(n = 8, name = "Dark2"),
+  main = "DisneyPlus - Positivo x Negativo",
+  xlab="emoções", ylab = NULL,
+  ylim=c(limite_y_min, limite_y_max),
+  axes=TRUE
+)
+
+#Amazon_Prime - Positivo x Negativo
+barplot(
+  colSums(prop.table(Amazon_Prime_sentimentos_df[, 10:09])),
+  space = 0.2,
+  horiz = FALSE,
+  las = 1,
+  cex.names = 0.7,
+  col = brewer.pal(n = 8, name = "Dark2"),
+  main = "Amazon_Prime - Positivo x Negativo",
+  xlab="emoções", ylab = NULL,
+  ylim=c(limite_y_min, limite_y_max),
+  axes=TRUE
+)
+```
+
+# Nuvem de palavras por sentimento   -  Alterar essa núvem e fazer por provedor
+```{r}
+
+#HBO#
+#Tokenização
+
+HBO_token <- HBO_Review %>%
+  unnest_tokens(word, Review)
+
+#Remoção stop_words
+
+stop_w <- tibble(word = stopwords(source = "stopwords-iso", language = "pt"))
+
+#retirar do corpus as stopwords
+HBO_token_SW <- get_tokens(HBO_token %>% anti_join(stop_w))
+
+HBO_sentimentos_df2 <- tibble(text = HBO_token_SW)
+
+HBO_token2 <- get_tokens(HBO_sentimentos_df2)
+print(HBO_sentimentos_df2)
+
+#Extração de dados com o NRC Sentiment Lexicon
+#usar argumento “lang”para usar o vocabulário português (“portuguese”). 
+
+HBO_sentimentos_df2 <- get_nrc_sentiment(HBO_token2, lang="portuguese")
+head(HBO_sentimentos_df2)
+summary(HBO_sentimentos_df2)
+
+#Organizar gráfico do maior para o menor e realizar a tradução dos termos
+HBO_sentimentos_df2 <- rename(HBO_sentimentos_df2, 
+                             raiva = "anger",
+                             antecipação = "anticipation",	
+                             desgosto = "disgust",
+                             medo = "fear",	
+                             alegria = "joy",	
+                             tristeza = "sadness",
+                             surpresa = "surprise",	
+                             confiança = "trust",
+                             negativo = "negative",	
+                             positivo = "positive")
+
+HBO_sentimentos_df2 <- HBO_sentimentos_df2 %>% select(tristeza,  medo, confiança, desgosto, antecipação, raiva,  alegria, surpresa, negativo, positivo)
+
+
+HBO_negativo <- HBO_token2[HBO_sentimentos_df2$negative > 0]
+HBO_negativo_ordem <- sort(table(unlist(HBO_negativo)), decreasing = TRUE)
+head(HBO_negativo_ordem, n = 10)
+
+length(HBO_negativo_ordem)
+
+HBO_positivo <- HBO_token2[HBO_sentimentos_df2$positive > 0]
+HBO_positivo_ordem <- sort(table(unlist(HBO_positivo)), decreasing = TRUE)
+head(HBO_positivo_ordem, n = 10)
+
+length(HBO_positivo_ordem)
+#-------------------------------------------------------------------------------
+#Nuvem de palavras por sentimento
+
+nuvem_emocoes_vetor_HBO2 <- c(
+  paste(HBO_token2[HBO_sentimentos_df2$tristeza > 0], collapse = " "),
+  paste(HBO_token2[HBO_sentimentos_df2$alegria > 0], collapse = " "),
+  paste(HBO_token2[HBO_sentimentos_df2$raiva > 0], collapse = " "),
+  paste(HBO_token2[HBO_sentimentos_df2$medo > 0], collapse = " "))
+
+nuvem_emocoes_vetor_HBO2 <- iconv(nuvem_emocoes_vetor_HBO2, "latin1", "UTF-8")
+
+
+#Com o vetor criamos um corpus de palavras com quatro “documentos” para a nuvem:
+nuvem_corpus_HBO2 <- Corpus(VectorSource(nuvem_emocoes_vetor_HBO2))
+
+#Transformação do corpus em uma matriz termo-documento:
+
+nuvem_tdm_HBO2 <- TermDocumentMatrix(nuvem_corpus_HBO2)
+nuvem_tdm_HBO2 <- as.matrix(nuvem_tdm_HBO2)
+head(nuvem_tdm_HBO2)
+
+colnames(nuvem_tdm_HBO2) <- c('tristeza', 'felicidade', 'raiva', 'confiança')
+head(nuvem_tdm_HBO2)
+
+
+comparison.cloud(nuvem_tdm_HBO2, random.order = FALSE,
+                 colors = brewer.pal(n = 8, name = "Dark2"),
+                 title.size = 1, max.words = 100, scale = c(2.5, 1), rot.per = 0.4)
+
+#Netflix#
+
+Netflix_token <- Netflix_Review %>%
+  unnest_tokens(word, Review)
+
+#Remoção stop_words
+
+stop_w <- tibble(word = stopwords(source = "stopwords-iso", language = "pt"))
+
+#retirar do corpus as stopwords
+Netflix_token_SW <- get_tokens(Netflix_token %>% anti_join(stop_w))
+
+Netflix_sentimentos_df2 <- tibble(text = Netflix_token_SW)
+
+Netflix_token2 <- get_tokens(Netflix_sentimentos_df2)
+print(Netflix_sentimentos_df2)
+
+#Extração de dados com o NRC Sentiment Lexicon
+#usar argumento “lang”para usar o vocabulário português (“portuguese”). 
+
+Netflix_sentimentos_df2 <- get_nrc_sentiment(Netflix_token2, lang="portuguese")
+head(Netflix_sentimentos_df2)
+summary(Netflix_sentimentos_df2)
+
+#Organizar gráfico do maior para o menor e realizar a tradução dos termos
+Netflix_sentimentos_df2 <- rename(Netflix_sentimentos_df2, 
+                             raiva = "anger",
+                             antecipação = "anticipation",	
+                             desgosto = "disgust",
+                             medo = "fear",	
+                             alegria = "joy",	
+                             tristeza = "sadness",
+                             surpresa = "surprise",	
+                             confiança = "trust",
+                             negativo = "negative",	
+                             positivo = "positive")
+
+Netflix_sentimentos_df2 <- Netflix_sentimentos_df2 %>% select(tristeza,  medo, confiança, desgosto, antecipação, raiva,  alegria, surpresa, negativo, positivo)
+
+
+Netflix_negativo <- Netflix_token2[Netflix_sentimentos_df2$negative > 0]
+Netflix_negativo_ordem <- sort(table(unlist(Netflix_negativo)), decreasing = TRUE)
+head(Netflix_negativo_ordem, n = 10)
+
+length(Netflix_negativo_ordem)
+
+Netflix_positivo <- Netflix_token2[Netflix_sentimentos_df2$positive > 0]
+Netflix_positivo_ordem <- sort(table(unlist(Netflix_positivo)), decreasing = TRUE)
+head(Netflix_positivo_ordem, n = 10)
+
+length(Netflix_positivo_ordem)
+#-------------------------------------------------------------------------------
+#Nuvem de palavras por sentimento
+
+nuvem_emocoes_vetor_Netflix2 <- c(
+  paste(Netflix_token2[Netflix_sentimentos_df2$tristeza > 0], collapse = " "),
+  paste(Netflix_token2[Netflix_sentimentos_df2$alegria > 0], collapse = " "),
+  paste(Netflix_token2[Netflix_sentimentos_df2$raiva > 0], collapse = " "),
+  paste(Netflix_token2[Netflix_sentimentos_df2$medo > 0], collapse = " "))
+
+nuvem_emocoes_vetor_Netflix2 <- iconv(nuvem_emocoes_vetor_Netflix2, "latin1", "UTF-8")
+
+
+#Com o vetor criamos um corpus de palavras com quatro “documentos” para a nuvem:
+nuvem_corpus_Netflix2 <- Corpus(VectorSource(nuvem_emocoes_vetor_Netflix2))
+
+#Transformação do corpus em uma matriz termo-documento:
+
+nuvem_tdm_Netflix2 <- TermDocumentMatrix(nuvem_corpus_Netflix2)
+nuvem_tdm_Netflix2 <- as.matrix(nuvem_tdm_Netflix2)
+head(nuvem_tdm_Netflix2)
+
+colnames(nuvem_tdm_Netflix2) <- c('tristeza', 'felicidade', 'raiva', 'confiança')
+head(nuvem_tdm_Netflix2)
+
+
+comparison.cloud(nuvem_tdm_Netflix2, random.order = FALSE,
+                 colors = brewer.pal(n = 8, name = "Dark2"),
+                 title.size = 1, max.words = 100, scale = c(2.5, 1), rot.per = 0.4)
+
+#ParamountPlus#
+
+ParamountPlus_token <- ParamountPlus_Review %>%
+  unnest_tokens(word, Review)
+
+#Remoção stop_words
+
+stop_w <- tibble(word = stopwords(source = "stopwords-iso", language = "pt"))
+
+#retirar do corpus as stopwords
+ParamountPlus_token_SW <- get_tokens(ParamountPlus_token %>% anti_join(stop_w))
+
+ParamountPlus_sentimentos_df2 <- tibble(text = ParamountPlus_token_SW)
+
+ParamountPlus_token2 <- get_tokens(ParamountPlus_sentimentos_df2)
+print(ParamountPlus_sentimentos_df2)
+
+#Extração de dados com o NRC Sentiment Lexicon
+#usar argumento “lang”para usar o vocabulário português (“portuguese”). 
+
+ParamountPlus_sentimentos_df2 <- get_nrc_sentiment(ParamountPlus_token2, lang="portuguese")
+head(ParamountPlus_sentimentos_df2)
+summary(ParamountPlus_sentimentos_df2)
+
+#Organizar gráfico do maior para o menor e realizar a tradução dos termos
+ParamountPlus_sentimentos_df2 <- rename(ParamountPlus_sentimentos_df2, 
+                             raiva = "anger",
+                             antecipação = "anticipation",	
+                             desgosto = "disgust",
+                             medo = "fear",	
+                             alegria = "joy",	
+                             tristeza = "sadness",
+                             surpresa = "surprise",	
+                             confiança = "trust",
+                             negativo = "negative",	
+                             positivo = "positive")
+
+ParamountPlus_sentimentos_df2 <- ParamountPlus_sentimentos_df2 %>% select(tristeza,  medo, confiança, desgosto, antecipação, raiva,  alegria, surpresa, negativo, positivo)
+
+
+ParamountPlus_negativo <- ParamountPlus_token2[ParamountPlus_sentimentos_df2$negative > 0]
+ParamountPlus_negativo_ordem <- sort(table(unlist(ParamountPlus_negativo)), decreasing = TRUE)
+head(ParamountPlus_negativo_ordem, n = 10)
+
+length(ParamountPlus_negativo_ordem)
+
+ParamountPlus_positivo <- ParamountPlus_token2[ParamountPlus_sentimentos_df2$positive > 0]
+ParamountPlus_positivo_ordem <- sort(table(unlist(ParamountPlus_positivo)), decreasing = TRUE)
+head(ParamountPlus_positivo_ordem, n = 10)
+
+length(ParamountPlus_positivo_ordem)
+#-------------------------------------------------------------------------------
+#Nuvem de palavras por sentimento
+
+nuvem_emocoes_vetor_ParamountPlus2 <- c(
+  paste(ParamountPlus_token2[ParamountPlus_sentimentos_df2$tristeza > 0], collapse = " "),
+  paste(ParamountPlus_token2[ParamountPlus_sentimentos_df2$alegria > 0], collapse = " "),
+  paste(ParamountPlus_token2[ParamountPlus_sentimentos_df2$raiva > 0], collapse = " "),
+  paste(ParamountPlus_token2[ParamountPlus_sentimentos_df2$medo > 0], collapse = " "))
+
+nuvem_emocoes_vetor_ParamountPlus2 <- iconv(nuvem_emocoes_vetor_ParamountPlus2, "latin1", "UTF-8")
+
+
+#Com o vetor criamos um corpus de palavras com quatro “documentos” para a nuvem:
+nuvem_corpus_ParamountPlus2 <- Corpus(VectorSource(nuvem_emocoes_vetor_ParamountPlus2))
+
+#Transformação do corpus em uma matriz termo-documento:
+
+nuvem_tdm_ParamountPlus2 <- TermDocumentMatrix(nuvem_corpus_ParamountPlus2)
+nuvem_tdm_ParamountPlus2 <- as.matrix(nuvem_tdm_ParamountPlus2)
+head(nuvem_tdm_ParamountPlus2)
+
+colnames(nuvem_tdm_ParamountPlus2) <- c('tristeza', 'felicidade', 'raiva', 'confiança')
+head(nuvem_tdm_ParamountPlus2)
+
+
+comparison.cloud(nuvem_tdm_ParamountPlus2, random.order = FALSE,
+                 colors = brewer.pal(n = 8, name = "Dark2"),
+                 title.size = 1, max.words = 100, scale = c(2.5, 1), rot.per = 0.4)
+
+
+#DisneyPlus#
+
+DisneyPlus_token <- DisneyPlus_Review %>%
+  unnest_tokens(word, Review)
+
+#Remoção stop_words
+
+stop_w <- tibble(word = stopwords(source = "stopwords-iso", language = "pt"))
+
+#retirar do corpus as stopwords
+DisneyPlus_token_SW <- get_tokens(DisneyPlus_token %>% anti_join(stop_w))
+
+DisneyPlus_sentimentos_df2 <- tibble(text = DisneyPlus_token_SW)
+
+DisneyPlus_token2 <- get_tokens(DisneyPlus_sentimentos_df2)
+print(DisneyPlus_sentimentos_df2)
+
+#Extração de dados com o NRC Sentiment Lexicon
+#usar argumento “lang”para usar o vocabulário português (“portuguese”). 
+
+DisneyPlus_sentimentos_df2 <- get_nrc_sentiment(DisneyPlus_token2, lang="portuguese")
+head(DisneyPlus_sentimentos_df2)
+summary(DisneyPlus_sentimentos_df2)
+
+#Organizar gráfico do maior para o menor e realizar a tradução dos termos
+DisneyPlus_sentimentos_df2 <- rename(DisneyPlus_sentimentos_df2, 
+                             raiva = "anger",
+                             antecipação = "anticipation",	
+                             desgosto = "disgust",
+                             medo = "fear",	
+                             alegria = "joy",	
+                             tristeza = "sadness",
+                             surpresa = "surprise",	
+                             confiança = "trust",
+                             negativo = "negative",	
+                             positivo = "positive")
+
+DisneyPlus_sentimentos_df2 <- DisneyPlus_sentimentos_df2 %>% select(tristeza,  medo, confiança, desgosto, antecipação, raiva,  alegria, surpresa, negativo, positivo)
+
+
+DisneyPlus_negativo <- DisneyPlus_token2[DisneyPlus_sentimentos_df2$negative > 0]
+DisneyPlus_negativo_ordem <- sort(table(unlist(DisneyPlus_negativo)), decreasing = TRUE)
+head(DisneyPlus_negativo_ordem, n = 10)
+
+length(DisneyPlus_negativo_ordem)
+
+DisneyPlus_positivo <- DisneyPlus_token2[DisneyPlus_sentimentos_df2$positive > 0]
+DisneyPlus_positivo_ordem <- sort(table(unlist(DisneyPlus_positivo)), decreasing = TRUE)
+head(DisneyPlus_positivo_ordem, n = 10)
+
+length(DisneyPlus_positivo_ordem)
+#-------------------------------------------------------------------------------
+#Nuvem de palavras por sentimento
+
+nuvem_emocoes_vetor_DisneyPlus2 <- c(
+  paste(DisneyPlus_token2[DisneyPlus_sentimentos_df2$tristeza > 0], collapse = " "),
+  paste(DisneyPlus_token2[DisneyPlus_sentimentos_df2$alegria > 0], collapse = " "),
+  paste(DisneyPlus_token2[DisneyPlus_sentimentos_df2$raiva > 0], collapse = " "),
+  paste(DisneyPlus_token2[DisneyPlus_sentimentos_df2$medo > 0], collapse = " "))
+
+nuvem_emocoes_vetor_DisneyPlus2 <- iconv(nuvem_emocoes_vetor_DisneyPlus2, "latin1", "UTF-8")
+
+
+#Com o vetor criamos um corpus de palavras com quatro “documentos” para a nuvem:
+nuvem_corpus_DisneyPlus2 <- Corpus(VectorSource(nuvem_emocoes_vetor_DisneyPlus2))
+
+#Transformação do corpus em uma matriz termo-documento:
+
+nuvem_tdm_DisneyPlus2 <- TermDocumentMatrix(nuvem_corpus_DisneyPlus2)
+nuvem_tdm_DisneyPlus2 <- as.matrix(nuvem_tdm_DisneyPlus2)
+head(nuvem_tdm_DisneyPlus2)
+
+colnames(nuvem_tdm_DisneyPlus2) <- c('tristeza', 'felicidade', 'raiva', 'confiança')
+head(nuvem_tdm_DisneyPlus2)
+
+
+comparison.cloud(nuvem_tdm_DisneyPlus2, random.order = FALSE,
+                 colors = brewer.pal(n = 8, name = "Dark2"),
+                 title.size = 1, max.words = 100, scale = c(2.5, 1), rot.per = 0.4)
+
+#Amazon_Prime#
+
+Amazon_Prime_token <- Amazon_Prime_Review %>%
+  unnest_tokens(word, Review)
+
+#Remoção stop_words
+
+stop_w <- tibble(word = stopwords(source = "stopwords-iso", language = "pt"))
+
+#retirar do corpus as stopwords
+Amazon_Prime_token_SW <- get_tokens(Amazon_Prime_token %>% anti_join(stop_w))
+
+Amazon_Prime_sentimentos_df2 <- tibble(text = Amazon_Prime_token_SW)
+
+Amazon_Prime_token2 <- get_tokens(Amazon_Prime_sentimentos_df2)
+print(Amazon_Prime_sentimentos_df2)
+
+#Extração de dados com o NRC Sentiment Lexicon
+#usar argumento “lang”para usar o vocabulário português (“portuguese”). 
+
+Amazon_Prime_sentimentos_df2 <- get_nrc_sentiment(Amazon_Prime_token2, lang="portuguese")
+head(Amazon_Prime_sentimentos_df2)
+summary(Amazon_Prime_sentimentos_df2)
+
+#Organizar gráfico do maior para o menor e realizar a tradução dos termos
+Amazon_Prime_sentimentos_df2 <- rename(Amazon_Prime_sentimentos_df2, 
+                             raiva = "anger",
+                             antecipação = "anticipation",	
+                             desgosto = "disgust",
+                             medo = "fear",	
+                             alegria = "joy",	
+                             tristeza = "sadness",
+                             surpresa = "surprise",	
+                             confiança = "trust",
+                             negativo = "negative",	
+                             positivo = "positive")
+
+Amazon_Prime_sentimentos_df2 <- Amazon_Prime_sentimentos_df2 %>% select(tristeza,  medo, confiança, desgosto, antecipação, raiva,  alegria, surpresa, negativo, positivo)
+
+
+Amazon_Prime_negativo <- Amazon_Prime_token2[Amazon_Prime_sentimentos_df2$negative > 0]
+Amazon_Prime_negativo_ordem <- sort(table(unlist(Amazon_Prime_negativo)), decreasing = TRUE)
+head(Amazon_Prime_negativo_ordem, n = 10)
+
+length(Amazon_Prime_negativo_ordem)
+
+Amazon_Prime_positivo <- Amazon_Prime_token2[Amazon_Prime_sentimentos_df2$positive > 0]
+Amazon_Prime_positivo_ordem <- sort(table(unlist(Amazon_Prime_positivo)), decreasing = TRUE)
+head(Amazon_Prime_positivo_ordem, n = 10)
+
+length(Amazon_Prime_positivo_ordem)
+#-------------------------------------------------------------------------------
+#Nuvem de palavras por sentimento
+
+nuvem_emocoes_vetor_Amazon_Prime2 <- c(
+  paste(Amazon_Prime_token2[Amazon_Prime_sentimentos_df2$tristeza > 0], collapse = " "),
+  paste(Amazon_Prime_token2[Amazon_Prime_sentimentos_df2$alegria > 0], collapse = " "),
+  paste(Amazon_Prime_token2[Amazon_Prime_sentimentos_df2$raiva > 0], collapse = " "),
+  paste(Amazon_Prime_token2[Amazon_Prime_sentimentos_df2$medo > 0], collapse = " "))
+
+nuvem_emocoes_vetor_Amazon_Prime2 <- iconv(nuvem_emocoes_vetor_Amazon_Prime2, "latin1", "UTF-8")
+
+
+#Com o vetor criamos um corpus de palavras com quatro “documentos” para a nuvem:
+nuvem_corpus_Amazon_Prime2 <- Corpus(VectorSource(nuvem_emocoes_vetor_Amazon_Prime2))
+
+#Transformação do corpus em uma matriz termo-documento:
+
+nuvem_tdm_Amazon_Prime2 <- TermDocumentMatrix(nuvem_corpus_Amazon_Prime2)
+nuvem_tdm_Amazon_Prime2 <- as.matrix(nuvem_tdm_Amazon_Prime2)
+head(nuvem_tdm_Amazon_Prime2)
+
+colnames(nuvem_tdm_Amazon_Prime2) <- c('tristeza', 'felicidade', 'raiva', 'confiança')
+head(nuvem_tdm_Amazon_Prime2)
+
+
+comparison.cloud(nuvem_tdm_Amazon_Prime2, random.order = FALSE,
+                 colors = brewer.pal(n = 8, name = "Dark2"),
+                 title.size = 1, max.words = 100, scale = c(2.5, 1), rot.per = 0.4)
+
+```
+
+# Nuvem de palavras positivo x negativo
+```{r}
+
+#Nuvem de palavras positivo x negativo
+
+#HBO#
+nuvem_emocoes_vetor_HBO_PN2 <- c(
+  paste(HBO_token2[HBO_sentimentos_df2$negativo > 0], collapse = " "),
+  paste(HBO_token2[HBO_sentimentos_df2$positivo > 0], collapse = " "))
+
+nuvem_emocoes_vetor_HBO_PN2 <- iconv(nuvem_emocoes_vetor_HBO_PN2, "latin1", "UTF-8")
+
+
+#Com o vetor criamos um corpus de palavras com dois “documentos” para a nuvem:
+nuvem_corpus_HBO_PN2 <- Corpus(VectorSource(nuvem_emocoes_vetor_HBO_PN2))
+
+nuvem_corpus_HBO_PN2 = tm_map(nuvem_corpus_HBO_PN2, removeWords, stopwords("portuguese"))
+
+#Transformação do corpus em uma matriz termo-documento:
+
+nuvem_tdm_HBO_PN2 <- TermDocumentMatrix(nuvem_corpus_HBO_PN2)
+nuvem_tdm_HBO_PN2 <- as.matrix(nuvem_tdm_HBO_PN2)
+head(nuvem_tdm_HBO_PN2)
+
+colnames(nuvem_tdm_HBO_PN2) <- c('HBO - Sentimento Negativo', 'HBO - Sentimento Positivo')
+
+
+comparison.cloud(nuvem_tdm_HBO_PN2, random.order = FALSE,
+                 colors =brewer.pal(n = 8, name = "Dark2"),
+                 title.size = 1, max.words = 20, scale = c(2.5, 1), rot.per = 0.4)
+
+
+
+#Netflix#
+nuvem_emocoes_vetor_Netflix_PN2 <- c(
+  paste(Netflix_token2[Netflix_sentimentos_df2$negativo > 0], collapse = " "),
+  paste(Netflix_token2[Netflix_sentimentos_df2$positivo > 0], collapse = " "))
+
+nuvem_emocoes_vetor_Netflix_PN2 <- iconv(nuvem_emocoes_vetor_Netflix_PN2, "latin1", "UTF-8")
+
+
+#Com o vetor criamos um corpus de palavras com dois “documentos” para a nuvem:
+nuvem_corpus_Netflix_PN2 <- Corpus(VectorSource(nuvem_emocoes_vetor_Netflix_PN2))
+
+nuvem_corpus_Netflix_PN2 = tm_map(nuvem_corpus_Netflix_PN2, removeWords, stopwords("portuguese"))
+
+#Transformação do corpus em uma matriz termo-documento:
+
+nuvem_tdm_Netflix_PN2 <- TermDocumentMatrix(nuvem_corpus_Netflix_PN2)
+nuvem_tdm_Netflix_PN2 <- as.matrix(nuvem_tdm_Netflix_PN2)
+head(nuvem_tdm_Netflix_PN2)
+
+colnames(nuvem_tdm_Netflix_PN2) <- c('Netflix - Sentimento Negativo', 'Netflix - Sentimento Positivo')
+
+
+comparison.cloud(nuvem_tdm_Netflix_PN2, random.order = FALSE,
+                 colors =brewer.pal(n = 8, name = "Dark2"),
+                 title.size = 1, max.words = 20, scale = c(2.5, 1), rot.per = 0.4)
+
+
+#ParamountPlus#
+nuvem_emocoes_vetor_ParamountPlus_PN2 <- c(
+  paste(ParamountPlus_token2[ParamountPlus_sentimentos_df2$negativo > 0], collapse = " "),
+  paste(ParamountPlus_token2[ParamountPlus_sentimentos_df2$positivo > 0], collapse = " "))
+
+nuvem_emocoes_vetor_ParamountPlus_PN2 <- iconv(nuvem_emocoes_vetor_ParamountPlus_PN2, "latin1", "UTF-8")
+
+
+#Com o vetor criamos um corpus de palavras com dois “documentos” para a nuvem:
+nuvem_corpus_ParamountPlus_PN2 <- Corpus(VectorSource(nuvem_emocoes_vetor_ParamountPlus_PN2))
+
+nuvem_corpus_ParamountPlus_PN2 = tm_map(nuvem_corpus_ParamountPlus_PN2, removeWords, stopwords("portuguese"))
+
+#Transformação do corpus em uma matriz termo-documento:
+
+nuvem_tdm_ParamountPlus_PN2 <- TermDocumentMatrix(nuvem_corpus_ParamountPlus_PN2)
+nuvem_tdm_ParamountPlus_PN2 <- as.matrix(nuvem_tdm_ParamountPlus_PN2)
+head(nuvem_tdm_ParamountPlus_PN2)
+
+colnames(nuvem_tdm_ParamountPlus_PN2) <- c('ParamountPlus - Sentimento Negativo', 'ParamountPlus - Sentimento Positivo')
+
+
+comparison.cloud(nuvem_tdm_ParamountPlus_PN2, random.order = FALSE,
+                 colors =brewer.pal(n = 8, name = "Dark2"),
+                 title.size = 1, max.words = 20, scale = c(2.5, 1), rot.per = 0.4)
+
+#DisneyPlus#
+
+nuvem_emocoes_vetor_DisneyPlus_PN2 <- c(
+  paste(DisneyPlus_token2[DisneyPlus_sentimentos_df2$negativo > 0], collapse = " "),
+  paste(DisneyPlus_token2[DisneyPlus_sentimentos_df2$positivo > 0], collapse = " "))
+
+nuvem_emocoes_vetor_DisneyPlus_PN2 <- iconv(nuvem_emocoes_vetor_DisneyPlus_PN2, "latin1", "UTF-8")
+
+
+#Com o vetor criamos um corpus de palavras com dois “documentos” para a nuvem:
+nuvem_corpus_DisneyPlus_PN2 <- Corpus(VectorSource(nuvem_emocoes_vetor_DisneyPlus_PN2))
+
+nuvem_corpus_DisneyPlus_PN2 = tm_map(nuvem_corpus_DisneyPlus_PN2, removeWords, stopwords("portuguese"))
+
+#Transformação do corpus em uma matriz termo-documento:
+
+nuvem_tdm_DisneyPlus_PN2 <- TermDocumentMatrix(nuvem_corpus_DisneyPlus_PN2)
+nuvem_tdm_DisneyPlus_PN2 <- as.matrix(nuvem_tdm_DisneyPlus_PN2)
+head(nuvem_tdm_DisneyPlus_PN2)
+
+colnames(nuvem_tdm_DisneyPlus_PN2) <- c('DisneyPlus - Sentimento Negativo', 'DisneyPlus - Sentimento Positivo')
+
+
+comparison.cloud(nuvem_tdm_DisneyPlus_PN2, random.order = FALSE,
+                 colors =brewer.pal(n = 8, name = "Dark2"),
+                 title.size = 1, max.words = 20, scale = c(2.5, 1), rot.per = 0.4)
+
+
+#Amazon_Prime#
+
+nuvem_emocoes_vetor_Amazon_Prime_PN2 <- c(
+  paste(Amazon_Prime_token2[Amazon_Prime_sentimentos_df2$negativo > 0], collapse = " "),
+  paste(Amazon_Prime_token2[Amazon_Prime_sentimentos_df2$positivo > 0], collapse = " "))
+
+nuvem_emocoes_vetor_Amazon_Prime_PN2 <- iconv(nuvem_emocoes_vetor_Amazon_Prime_PN2, "latin1", "UTF-8")
+
+
+#Com o vetor criamos um corpus de palavras com dois “documentos” para a nuvem:
+nuvem_corpus_Amazon_Prime_PN2 <- Corpus(VectorSource(nuvem_emocoes_vetor_Amazon_Prime_PN2))
+
+nuvem_corpus_Amazon_Prime_PN2 = tm_map(nuvem_corpus_Amazon_Prime_PN2, removeWords, stopwords("portuguese"))
+
+#Transformação do corpus em uma matriz termo-documento:
+
+nuvem_tdm_Amazon_Prime_PN2 <- TermDocumentMatrix(nuvem_corpus_Amazon_Prime_PN2)
+nuvem_tdm_Amazon_Prime_PN2 <- as.matrix(nuvem_tdm_Amazon_Prime_PN2)
+head(nuvem_tdm_Amazon_Prime_PN2)
+
+colnames(nuvem_tdm_Amazon_Prime_PN2) <- c('Amazon_Prime - Sentimento Negativo', 'Amazon_Prime - Sentimento Positivo')
+
+
+comparison.cloud(nuvem_tdm_Amazon_Prime_PN2, random.order = FALSE,
+                 colors =brewer.pal(n = 8, name = "Dark2"),
+                 title.size = 1, max.words = 20, scale = c(2.5, 1), rot.per = 0.4)
+
+
+```
+
+#Combinação dos datasets com Bind
+```{r}
+# Existem formas simples de combinar datasets, adequados em casos particulares
+# As funções "bind" combinam datasets sem a especificação de uma "chave"
+# Isto significa que as observações ou variáveis devem estar na mesma ordem
+
+dataset_bind_Provedores <- bind_rows(HBO_Review_Full, Amazon_Prime_Review_Full, DisneyPlus_Review_Full, Netflix_Review_Full, ParamountPlus_Review_Full)
+
+#Unnest tokes para análise
+Provedor_words <- dataset_bind_Provedores %>%
+  unnest_tokens(word, Review) %>%
+  count(Provedor, word, sort = TRUE)
+
+#Avalia Lei de ZIPF 
+#A lei de Zipf afirma que a frequência com que uma palavra aparece é inversamente proporcional a sua classificação.
+
+#TF-IDF
+#Não vamos pré-processar, a ideia é mostrar papel do tf-idf
+Provedores_tf_idf <- Provedor_words %>% bind_tf_idf(word, Provedor, n)
+
+#Separa para ver palavras mais importantes por texto
+HBO_tf_idf <- Provedores_tf_idf %>% filter(Provedor == "HBO")
+Netflix_tf_idf <- Provedores_tf_idf %>% filter(Provedor == "Netflix")
+DisneyPlus_tf_idf <- Provedores_tf_idf %>% filter(Provedor == "Disney Plus")
+Amazon_Prime_tf_idf <- Provedores_tf_idf %>% filter(Provedor == "Amazon Prime")
+ParamountPlus_tf_idf <- Provedores_tf_idf %>% filter(Provedor == "Paramount Plus")
+
+#Realiza gráfico com palavras mais importantes
+Provedor_grafico <- Provedores_tf_idf %>% 
+  group_by(Provedor) %>% 
+  slice_max(tf_idf, n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, tf_idf)) 
+
+Provedor_grafico %>% ggplot(aes(tf_idf, word, fill = Provedor)) +
+  geom_col(show.legend = FALSE) +
+  labs(x = "tf-idf", y = NULL) +
+  facet_wrap(~Provedor, ncol = 2, scales = "free")
+
+```
+```{r}
+
+  Provedores_tf_idf %>%
+  pairwise_count(term, document, sort = TRUE) %>%
+  filter(n >= 10) %>%
+  graph_from_data_frame() %>%
+  ggraph(layout = "fr") +
+  geom_node_point(color = "#87CEFA", size = 5) +
+  geom_node_text(aes(label = name), vjust = 1.8) +
+  theme_void()
+
+```
+
